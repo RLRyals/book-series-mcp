@@ -1,0 +1,48 @@
+{
+  "name": "book-series-mcp",
+  "version": "1.0.0",
+  "description": "MCP Servers for managing complex book series data",
+  "main": "src/shared/base-server.js",
+  "type": "module",
+  "scripts": {
+    "start": "cross-env node src/${SERVER_TYPE}-server/index.js",
+    "dev": "cross-env node --watch src/${SERVER_TYPE}-server/index.js",
+    "test": "node --test",
+    "start:character": "cross-env SERVER_TYPE=character node src/character-server/index.js",
+    "start:plot": "cross-env SERVER_TYPE=plot node src/plot-server/index.js",
+    "start:world": "cross-env SERVER_TYPE=world node src/world-server/index.js",
+    "start:writing": "cross-env SERVER_TYPE=writing node src/writing-server/index.js",
+    "start:research": "cross-env SERVER_TYPE=research node src/research-server/index.js",
+    "db:migrate": "node src/shared/migrate.js",
+    "db:seed": "node src/shared/seed.js",
+    "test:db": "node test-db-connection.js",
+    "db:run-migration": "node src/shared/run-migration.js",
+    "test:character-knowledge": "node tests/character-knowledge-tracker-test.js",
+    "test:story-structure": "node tests/story-structure-validator-test.js",
+    "migrate:story-structure": "node src/shared/run-migration.js 20250702_add_story_structure_validator.sql",
+    "db:docker": "powershell -File ./db-docker-tools.ps1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.11.3",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "mcp",
+    "writing",
+    "book-series",
+    "claude",
+    "postgresql"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

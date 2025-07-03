@@ -1,0 +1,167 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: book-series-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - book-series-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Character Development MCP Server
+  character-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: character-mcp-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_PORT: 3001
+      SERVER_TYPE: character
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./src/shared:/app/src/shared
+      - ./src/character-server:/app/src/character-server
+      - /app/node_modules
+    networks:
+      - book-series-net
+    restart: unless-stopped
+    command: npm run dev
+
+  # Plot Management MCP Server  
+  plot-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: plot-mcp-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_PORT: 3002
+      SERVER_TYPE: plot
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./src/shared:/app/src/shared
+      - ./src/plot-server:/app/src/plot-server
+      - /app/node_modules
+    networks:
+      - book-series-net
+    restart: unless-stopped
+    command: npm run dev
+
+  # World Building MCP Server
+  world-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: world-mcp-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_PORT: 3003
+      SERVER_TYPE: world
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./src/shared:/app/src/shared
+      - ./src/world-server:/app/src/world-server
+      - /app/node_modules
+    networks:
+      - book-series-net
+    restart: unless-stopped
+    command: npm run dev
+
+  # Writing Production MCP Server
+  writing-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: writing-mcp-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_PORT: 3004
+      SERVER_TYPE: writing
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./src/shared:/app/src/shared
+      - ./src/writing-server:/app/src/writing-server
+      - /app/node_modules
+    networks:
+      - book-series-net
+    restart: unless-stopped
+    command: npm run dev
+
+  # Research & Continuity MCP Server
+  research-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: research-mcp-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_PORT: 3005
+      SERVER_TYPE: research
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./src/shared:/app/src/shared
+      - ./src/research-server:/app/src/research-server
+      - /app/node_modules
+    networks:
+      - book-series-net
+    restart: unless-stopped
+    command: npm run dev
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: book-series-admin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8080:80"
+    networks:
+      - book-series-net
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  book-series-net:
+    driver: bridge
