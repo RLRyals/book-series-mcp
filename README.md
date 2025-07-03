@@ -95,6 +95,7 @@ POSTGRES_DOCKER_PASSWORD=your_docker_password_here
 ```
 
 ### Option B: Using existing PostgreSQL installation
+(This option doesn't require Docker or any Docker-related files)
 
 1. Create a new database in your PostgreSQL instance:
 ```sql
@@ -132,6 +133,8 @@ DB_NAME=book_series
 DB_USER=writer
 DB_PASSWORD=secure_writing_password_2025
 ```
+
+Note: When using this option, you can ignore the `docker-compose.yml` and other Docker-related files in the project as they are only needed for Option A.
 
 ## Setting Up MCP Servers in Claude Desktop
 
