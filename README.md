@@ -139,9 +139,9 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
 ## Setting Up MCP Servers in Claude Desktop
 
 1. Open Claude Desktop
-2. Go to Settings
-3. In the settings, look for the "MCP Servers Configuration" section
-4. Replace the entire configuration with this:
+2. Go to Settings under File -> Settings
+3. In the settings, go to the Developer tab
+4. Select Edit Config. Replace or edit the configuration with this:
 
 ```json
 {
