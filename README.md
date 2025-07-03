@@ -22,7 +22,7 @@ This project provides a set of Model Context Protocol (MCP) servers designed to 
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/[your-username]/book-series-mcp.git
+git clone https://github.com/RLRyals/book-series-mcp.git
 cd book-series-mcp
 ```
 
