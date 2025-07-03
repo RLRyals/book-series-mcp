@@ -42,21 +42,95 @@ npm install
 You have two options:
 
 ### Option A: Using Docker (Recommended)
-1. Make sure Docker is installed and running
-2. Run the database setup script:
+
+1. Install Docker:
+   - Visit [Docker Desktop's download page](https://www.docker.com/products/docker-desktop)
+   - Download Docker Desktop for Windows
+   - Run the installer and follow the installation wizard
+   - During installation:
+     - If prompted about WSL 2, allow Docker to install it
+     - Accept the default settings
+   - Restart your computer after installation
+
+2. Start Docker:
+   - Launch Docker Desktop from your Start menu
+   - Wait for the Docker icon in your system tray to stop animating (this means Docker is ready)
+   - You can verify Docker is running by:
+     - Right-clicking the Docker icon in the system tray
+     - It should say "Docker Desktop is running" with a green check mark
+
+3. Run the database setup script:
 ```bash
 pwsh .\db-docker-tools.ps1 -setup
 ```
+
 This will:
 - Create a Docker container with PostgreSQL
 - Initialize the database with the schema
 - Set up all necessary tables and views
 
+Additional Docker database management commands:
+```powershell
+# Check database status
+pwsh .\db-docker-tools.ps1 -Command status
+
+# Connect to database directly
+pwsh .\db-docker-tools.ps1 -Command connect
+
+# Backup the database
+pwsh .\db-docker-tools.ps1 -Command backup
+
+# Test connection
+pwsh .\db-docker-tools.ps1 -Command test-connection
+
+# Run specific migration
+pwsh .\db-docker-tools.ps1 -Command run-migration -MigrationFile <migration_file>
+```
+
+You can customize the Docker setup using these environment variables in your `.env` file:
+```env
+POSTGRES_DOCKER_CONTAINER=book-series-db
+POSTGRES_DOCKER_PORT=5432
+POSTGRES_DOCKER_PASSWORD=your_docker_password_here
+```
+
 ### Option B: Using existing PostgreSQL installation
-1. Create a new database in your PostgreSQL instance
-2. Run the initialization script:
+
+1. Create a new database in your PostgreSQL instance:
 ```sql
-psql -U your_user -d your_database -f init.sql
+CREATE DATABASE book_series;
+```
+
+2. Create a new user with appropriate permissions:
+```sql
+CREATE USER writer WITH PASSWORD 'secure_writing_password_2025';
+GRANT ALL PRIVILEGES ON DATABASE book_series TO writer;
+```
+
+3. Run the initialization script:
+```sql
+psql -U writer -d book_series -f init.sql
+```
+
+4. Apply any necessary migrations from the `migrations` folder in order:
+```sql
+psql -U writer -d book_series -f migrations/20250701_add_character_knowledge_states.sql
+psql -U writer -d book_series -f migrations/20250702_add_story_structure_validator.sql
+# ... and so on for other migration files
+```
+
+5. Test the database connection:
+```bash
+node test-db-connection.js
+```
+
+Make sure your `.env` file has the correct PostgreSQL connection details:
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=book_series
+DB_USER=writer
+DB_PASSWORD=secure_writing_password_2025
 ```
 
 ## Setting Up MCP Servers in Claude Desktop
