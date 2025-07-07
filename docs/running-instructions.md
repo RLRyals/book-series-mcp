@@ -13,8 +13,8 @@ Host: localhost
 Port: 5432
 Database: book_series
 Username: writer
-Password: secure_writing_password_2024
-Connection string: postgresql://writer:secure_writing_password_2024@localhost:5432/book_series
+Password: password
+Connection string: postgresql://writer:password@localhost:5432/book_series
 ```
 
 ### MCP Servers (Claude Desktop)
@@ -29,7 +29,7 @@ The MCP servers are configured to run through Claude Desktop. The configuration 
   ],
   "env": {
     "NODE_ENV": "development",
-    "DATABASE_URL": "postgresql://writer:secure_writing_password_2024@localhost:5432/book_series",
+    "DATABASE_URL": "postgresql://writer:password@localhost:5432/book_series",
     "MCP_PORT": "3005"
   }
 }
@@ -78,7 +78,7 @@ npm run test:character-knowledge
 Make sure the environment variable for the database connection is properly set when running the tests:
 
 ```powershell
-$env:DATABASE_URL="postgresql://writer:secure_writing_password_2024@localhost:5432/book_series"
+$env:DATABASE_URL="postgresql://writer:password@localhost:5432/book_series"
 npm run test:character-knowledge
 ```
 
