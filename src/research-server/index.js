@@ -1301,173 +1301,113 @@ class ResearchContinuityServer extends BaseMCPServer {
     }
 
     async generateProgressReport(args) {
-        // Generate progress report
-        return { type: 'progress_report', content: 'Progress report would be generated here' };
-    }
+        const { series_id, book_range, include_secrets } = args;
 
-    async generatePublishingTimeline(args) {
-        // Generate publishing timeline
-        return { type: 'publishing_timeline', content: 'Publishing timeline would be generated here' };
-    }
-
-    formatReportAsMarkdown(report, reportType) {
-        return `# ${reportType.replace('_', ' ').toUpperCase()}\n\n${JSON.stringify(report, null, 2)}`;
-    }
-
-    formatReportAsHTML(report, reportType) {
-        return `<h1>${reportType.replace('_', ' ').toUpperCase()}</h1><pre>${JSON.stringify(report, null, 2)}</pre>`;
-    }
-
-    createReportSummary(report, reportType) {
+        // Get series information
+        const seriesQuery = 'SELECT * FROM series WHERE id = $1';
+        const seriesResult = await this.db.query(seriesQuery, [series_id]);
+        const series = seriesResult.rows[0];
+        
+        if (!series) {
+            throw new Error(`Series with ID ${series_id} not found`);
+        }
+        
+        // Get books and their progress
+        let booksQuery = `
+            SELECT 
+                b.*,
+                ROUND((b.word_count::numeric / NULLIF(b.target_word_count, 0)::numeric) * 100.0, 2) as completion_percentage,
+                COUNT(c.id) as chapters_created,
+                COALESCE(SUM(c.word_count), 0) as current_word_count,
+                COUNT(c.id) FILTER (WHERE c.status = 'final') as completed_chapters
+            FROM books b
+            LEFT JOIN chapters c ON b.id = c.book_id
+            WHERE b.series_id = $1
+        `;
+        
+        const params = [series_id];
+        
+        // Add book range filter if provided
+        if (book_range) {
+            if (book_range.start_book) {
+                booksQuery += ` AND b.book_number >= $${params.length + 1}`;
+                params.push(book_range.start_book);
+            }
+            if (book_range.end_book) {
+                booksQuery += ` AND b.book_number <= $${params.length + 1}`;
+                params.push(book_range.end_book);
+            }
+        }
+        
+        booksQuery += ` GROUP BY b.id ORDER BY b.book_number`;
+        
+        const booksResult = await this.db.query(booksQuery, params);
+        const books = booksResult.rows;
+        
+        // Get overall writing sessions data
+        const sessionsQuery = `
+            SELECT 
+                COUNT(*) as total_sessions,
+                SUM(words_written) as total_words,
+                ROUND(AVG(words_written)::numeric, 0) as avg_words_per_session,
+                ROUND(AVG(productivity_rating)::numeric, 1) as avg_productivity,
+                COUNT(DISTINCT book_id) as books_worked_on,
+                COUNT(DISTINCT date(session_start)) as total_days_worked,
+                MAX(session_start) as last_session_date
+            FROM writing_sessions 
+            WHERE book_id IN (SELECT id FROM books WHERE series_id = $1)
+        `;
+        
+        const sessionsResult = await this.db.query(sessionsQuery, [series_id]);
+        const sessionsData = sessionsResult.rows[0];
+        
+        // Get writing goals if any
+        const goalsQuery = `
+            SELECT * FROM writing_goals 
+            WHERE series_id = $1 
+            ORDER BY created_at DESC
+            LIMIT 1
+        `;
+        
+        const goalsResult = await this.db.query(goalsQuery, [series_id]);
+        const goals = goalsResult.rows[0] || null;
+        
+        // Generate comprehensive progress report
         return {
-            report_type: reportType,
+            type: 'progress_report',
             generated_at: new Date().toISOString(),
-            summary: `${reportType} report generated successfully`
-        };
-    }
-
-    // Export helper methods
-    async exportBooks(args) {
-        const result = await this.db.query('SELECT * FROM books WHERE series_id = $1 ORDER BY book_number', [args.series_id]);
-        return result.rows;
-    }
-
-    async exportChapters(args) {
-        let selectFields = 'c.*';
-        if (!args.include_content) {
-            selectFields = 'c.id, c.book_id, c.chapter_number, c.title, c.word_count, c.target_word_count, c.summary, c.outline, c.status, c.created_at, c.updated_at';
-        }
-        
-        const result = await this.db.query(
-            `SELECT ${selectFields} FROM chapters c JOIN books b ON c.book_id = b.id WHERE b.series_id = $1 ORDER BY b.book_number, c.chapter_number`,
-            [args.series_id]
-        );
-        return result.rows;
-    }
-
-    async exportCharacters(args) {
-        let query = 'SELECT * FROM characters WHERE series_id = $1';
-        if (!args.include_secrets) {
-            query = 'SELECT id, name, character_type, species, occupation, department, rank_title, age, physical_description, personality_traits, background_story, abilities, goals, moral_alignment, importance_level, status, created_at, updated_at FROM characters WHERE series_id = $1';
-        }
-        
-        const result = await this.db.query(query + ' ORDER BY importance_level DESC, name', [args.series_id]);
-        return result.rows;
-    }
-
-    async exportPlotThreads(args) {
-        const result = await this.db.query('SELECT * FROM plot_threads WHERE series_id = $1 ORDER BY thread_type, start_book', [args.series_id]);
-        return result.rows;
-    }
-
-    async exportLocations(args) {
-        const result = await this.db.query('SELECT * FROM locations WHERE series_id = $1 ORDER BY name', [args.series_id]);
-        return result.rows;
-    }
-
-    async exportWorldElements(args) {
-        const result = await this.db.query('SELECT * FROM world_building_elements WHERE series_id = $1 ORDER BY category, element_name', [args.series_id]);
-        return result.rows;
-    }
-
-    async exportCases(args) {
-        const result = await this.db.query(
-            'SELECT c.* FROM cases c JOIN books b ON c.book_id = b.id WHERE b.series_id = $1 ORDER BY b.book_number',
-            [args.series_id]
-        );
-        return result.rows;
-    }
-
-    async exportEvidence(args) {
-        const result = await this.db.query(
-            'SELECT ce.* FROM clues_evidence ce JOIN cases c ON ce.case_id = c.id JOIN books b ON c.book_id = b.id WHERE b.series_id = $1 ORDER BY b.book_number',
-            [args.series_id]
-        );
-        return result.rows;
-    }
-
-    async exportTimelineEvents(args) {
-        const result = await this.db.query('SELECT * FROM timeline_events WHERE series_id = $1 ORDER BY event_datetime', [args.series_id]);
-        return result.rows;
-    }
-
-    async exportNotes(args) {
-        const result = await this.db.query('SELECT * FROM series_notes WHERE series_id = $1 ORDER BY priority DESC, created_at DESC', [args.series_id]);
-        return result.rows;
-    }
-
-    async exportWritingSessions(args) {
-        const result = await this.db.query(
-            'SELECT ws.* FROM writing_sessions ws JOIN books b ON ws.book_id = b.id WHERE b.series_id = $1 ORDER BY ws.session_start DESC',
-            [args.series_id]
-        );
-        return result.rows;
-    }
-
-    convertToCSV(data) {
-        // Basic CSV conversion - in a real implementation, this would be more sophisticated
-        return 'CSV conversion not fully implemented - use JSON export';
-    }
-
-    async findFactContradictions(fact, allFacts) {
-        // Find contradictions between facts
-        return [];
-    }
-
-    async verifyFactSource(factData) {
-        // Verify the source of a fact
-        return { verified: true, source_exists: true };
-    }
-
-    calculateFactConsistencyScore(verificationResults) {
-        const consistent = verificationResults.filter(f => f.verification_status === 'consistent').length;
-        return verificationResults.length > 0 ? Math.round((consistent / verificationResults.length) * 100) : 100;
-    }
-
-    // Internal methods
-    async getCharacterKnowledgeStateInternal(characterId, chapterId) {
-        const result = await this.db.query(
-            `SELECT * FROM character_knowledge 
-             WHERE character_id = $1 AND chapter_id <= $2 
-             ORDER BY chapter_id DESC 
-             LIMIT 1`,
-            [characterId, chapterId]
-        );
-        
-        return result.rows[0] || null;
-    }
-
-    evaluateReferenceAbility(knowledgeState, knowledgeItem) {
-        if (!knowledgeState) return false;
-        
-        // Check if the knowledge item is within the character's knowledge
-        const knowsDirectly = knowledgeState.knowledge_item === knowledgeItem && knowledgeState.knowledge_state === 'knows';
-        const knowsWithProtection = knowledgeState.knowledge_item === knowledgeItem && knowledgeState.knowledge_state === 'knows_with_oz_protection';
-        const suspects = knowledgeState.knowledge_item === knowledgeItem && knowledgeState.knowledge_state === 'suspects';
-        
-        return knowsDirectly || knowsWithProtection || suspects;
-    }
-
-    validateSceneContent(knowledgeState, sceneContent, contentType) {
-        if (!knowledgeState) return { valid: true, issues: [] };
-        
-        const issues = [];
-        
-        // Check dialogue restrictions
-        if (contentType === 'dialogue' && knowledgeState.dialogue_restriction) {
-            issues.push(`Dialogue restricted: ${knowledgeState.dialogue_restriction}`);
-        }
-        
-        // Check internal thought restrictions
-        if (contentType === 'internal_thought' && !knowledgeState.internal_thought_ok) {
-            issues.push(`Internal thought reference not allowed`);
-        }
-        
-        // Add more content validation rules as needed
-        
-        return {
-            valid: issues.length === 0,
-            issues
+            series: {
+                id: series.id,
+                name: series.name,
+                books_planned: series.total_planned_books,
+                books_created: books.length,
+                overall_progress: `${Math.round((books.length / series.total_planned_books) * 100)}%`
+            },
+            writing_stats: {
+                total_words_written: sessionsData.total_words || 0,
+                total_sessions: sessionsData.total_sessions || 0,
+                avg_words_per_session: sessionsData.avg_words_per_session || 0,
+                avg_productivity: sessionsData.avg_productivity || 0,
+                books_worked_on: sessionsData.books_worked_on || 0,
+                total_days_worked: sessionsData.total_days_worked || 0,
+                last_session_date: sessionsData.last_session_date
+            },
+            writing_goals: goals,
+            books: books.map(book => ({
+                id: book.id,
+                book_number: book.book_number,
+                title: book.title,
+                status: book.status,
+                word_count: book.word_count,
+                target_word_count: book.target_word_count,
+                completion_percentage: book.completion_percentage,
+                chapters_created: book.chapters_created,
+                completed_chapters: book.completed_chapters,
+                target_chapters: book.target_chapters,
+                outline_complete: book.outline_complete,
+                first_draft_complete: book.first_draft_complete,
+                editing_complete: book.editing_complete
+            }))
         };
     }
 }

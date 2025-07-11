@@ -50,12 +50,19 @@ function Show-Help {
 function Check-Status {
     Write-Host "Checking PostgreSQL container status..." -ForegroundColor Cyan
     
-    $container = docker ps -a --filter "name=$ContainerName" --format "{{.Names}} ({{.Status}})"
-    
-    if ($container) {
-        Write-Host "Found container: $container" -ForegroundColor Green
-    } else {
-        Write-Host "No container found with name: $ContainerName" -ForegroundColor Red
+    try {
+        $container = docker ps -a --filter "name=$ContainerName" --format "{{.Names}} ({{.Status}})"
+        
+        if ($container) {
+            Write-Host "Found container: $container" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "No container found with name: $ContainerName" -ForegroundColor Red
+            return $false
+        }
+    } catch {
+        Write-Host "Error checking container status: $_" -ForegroundColor Red
+        return $false
     }
 }
 
@@ -63,13 +70,27 @@ function Check-Status {
 function Connect-Database {
     Write-Host "Connecting to PostgreSQL in Docker container $ContainerName..." -ForegroundColor Cyan
     
-    docker exec -it $ContainerName psql -U $Username -d $Database
+    if (-not (Check-Status)) {
+        Write-Host "Container not found or not running. Please check container status first." -ForegroundColor Red
+        return
+    }
+    
+    try {
+        docker exec -it $ContainerName psql -U $Username -d $Database
+    } catch {
+        Write-Host "Error connecting to database: $_" -ForegroundColor Red
+    }
 }
 
 # Function to run a migration file
 function Run-Migration {
     if (-not $MigrationFile) {
         Write-Host "Error: Migration file not specified. Use -MigrationFile parameter." -ForegroundColor Red
+        return
+    }
+    
+    if (-not (Check-Status)) {
+        Write-Host "Container not found or not running. Please check container status first." -ForegroundColor Red
         return
     }
     
@@ -82,22 +103,26 @@ function Run-Migration {
     
     Write-Host "Running migration: $MigrationFile..." -ForegroundColor Cyan
     
-    # Copy migration file to container
-    $tempPath = "/tmp/$MigrationFile"
-    Get-Content $migrationPath | docker exec -i $ContainerName sh -c "cat > $tempPath"
-    
-    # Execute migration
-    docker exec -i $ContainerName psql -U $Username -d $Database -f $tempPath
-    
-    # Clean up temp file
-    docker exec $ContainerName rm $tempPath
-    
-    Write-Host "Migration completed." -ForegroundColor Green
+    try {
+        # Copy migration file to container
+        $tempPath = "/tmp/$MigrationFile"
+        Get-Content $migrationPath | docker exec -i $ContainerName sh -c "cat > $tempPath"
+        
+        # Execute migration
+        docker exec -i $ContainerName psql -U $Username -d $Database -f $tempPath
+        
+        # Clean up temp file
+        docker exec $ContainerName rm $tempPath
+        
+        Write-Host "Migration completed." -ForegroundColor Green
+    } catch {
+        Write-Host "Error running migration: $_" -ForegroundColor Red
+    }
 }
 
 # Function to list available migrations
 function List-Migrations {
-    $migrationsDir = Join-Path -Path (Get-Location) -ChildPath "migrations"
+    $migrationsDir = Join-Path (Get-Location) "migrations"
     
     if (-not (Test-Path $migrationsDir)) {
         Write-Host "Error: Migrations directory not found: $migrationsDir" -ForegroundColor Red
@@ -121,35 +146,76 @@ function List-Migrations {
 function Test-DbConnection {
     Write-Host "Testing connection to PostgreSQL in Docker container $ContainerName..." -ForegroundColor Cyan
     
-    $result = docker exec $ContainerName psql -U $Username -d $Database -c "SELECT NOW() as current_time;"
+    if (-not (Check-Status)) {
+        Write-Host "Container not found or not running. Please check container status first." -ForegroundColor Red
+        return
+    }
     
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "Connection successful!" -ForegroundColor Green
-    } else {
-        Write-Host "Connection failed!" -ForegroundColor Red
+    try {
+        $result = docker exec $ContainerName psql -U $Username -d $Database -c "SELECT NOW() as current_time;"
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Connection successful!" -ForegroundColor Green
+        } else {
+            Write-Host "Connection failed!" -ForegroundColor Red
+        }
+    } catch {
+        Write-Host "Error testing connection: $_" -ForegroundColor Red
     }
 }
 
 # Function to backup the database
 function Backup-Database {
+    if (-not (Check-Status)) {
+        Write-Host "Container not found or not running. Please check container status first." -ForegroundColor Red
+        return
+    }
+
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $backupFile = "backup_${Database}_${timestamp}.sql"
+    $backupDir = Join-Path -Path (Get-Location) -ChildPath "backups"
     
-    Write-Host "Backing up database $Database to $backupFile..." -ForegroundColor Cyan
+    if (-not (Test-Path $backupDir)) {
+        New-Item -ItemType Directory -Path $backupDir | Out-Null
+    }
     
-    docker exec $ContainerName pg_dump -U $Username -d $Database -f "/tmp/$backupFile"
-    docker cp "$ContainerName:/tmp/$backupFile" "./$backupFile"
-    docker exec $ContainerName rm "/tmp/$backupFile"
+    $backupPath = Join-Path -Path $backupDir -ChildPath $backupFile
+    Write-Host "Backing up database $Database to $backupPath..." -ForegroundColor Cyan
     
-    Write-Host "Backup completed: $backupFile" -ForegroundColor Green
+    try {
+        docker exec $ContainerName pg_dump -U $Username -d $Database -f "/tmp/$backupFile"
+        if ($LASTEXITCODE -ne 0) {
+            throw "pg_dump failed"
+        }
+        
+        docker cp "$ContainerName:/tmp/$backupFile" $backupPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to copy backup file from container"
+        }
+        
+        docker exec $ContainerName rm "/tmp/$backupFile"
+        Write-Host "Backup completed: $backupPath" -ForegroundColor Green
+    } catch {
+        Write-Host "Error creating backup: $_" -ForegroundColor Red
+    }
 }
 
 # Function to restore the database
 function Restore-Database {
-    $backupFiles = Get-ChildItem -Path (Get-Location) -Filter "backup_${Database}_*.sql" | Sort-Object LastWriteTime -Descending
+    if (-not (Check-Status)) {
+        Write-Host "Container not found or not running. Please check container status first." -ForegroundColor Red
+        return
+    }
+
+    $backupDir = Join-Path -Path (Get-Location) -ChildPath "backups"
+    if (-not (Test-Path $backupDir)) {
+        Write-Host "Backup directory not found: $backupDir" -ForegroundColor Red
+        return
+    }
+    
+    $backupFiles = Get-ChildItem -Path $backupDir -Filter "backup_$($Database)_*.sql" | Sort-Object LastWriteTime -Descending
     
     if ($backupFiles.Count -eq 0) {
-        Write-Host "No backup files found." -ForegroundColor Red
+        Write-Host "No backup files found in $backupDir." -ForegroundColor Red
         return
     }
     
@@ -164,20 +230,55 @@ function Restore-Database {
         return
     }
     
+    if (-not ($selection -match '^\d+$')) {
+        Write-Host "Invalid selection. Please enter a number." -ForegroundColor Red
+        return
+    }
+    
     $selectedIndex = [int]$selection
     if ($selectedIndex -ge 0 -and $selectedIndex -lt $backupFiles.Count) {
         $backupFile = $backupFiles[$selectedIndex].Name
+        $backupPath = Join-Path -Path $backupDir -ChildPath $backupFile
         
         Write-Host "Restoring database $Database from $backupFile..." -ForegroundColor Cyan
         
-        docker cp "./$backupFile" "$ContainerName:/tmp/$backupFile"
-        docker exec $ContainerName psql -U $Username -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$Database' AND pid <> pg_backend_pid();"
-        docker exec $ContainerName psql -U $Username -d postgres -c "DROP DATABASE IF EXISTS ${Database};"
-        docker exec $ContainerName psql -U $Username -d postgres -c "CREATE DATABASE ${Database} WITH OWNER = $Username;"
-        docker exec $ContainerName psql -U $Username -d $Database -f "/tmp/$backupFile"
-        docker exec $ContainerName rm "/tmp/$backupFile"
-        
-        Write-Host "Restore completed." -ForegroundColor Green
+        try {
+            docker cp $backupPath "$ContainerName:/tmp/$backupFile"
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to copy backup file to container"
+            }
+
+            # Create SQL commands with proper variable escaping
+            $terminateCmd = "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${Database}' AND pid <> pg_backend_pid();"
+            $dropCmd = "DROP DATABASE IF EXISTS ""${Database}"";"
+            $createCmd = "CREATE DATABASE ""${Database}"" WITH OWNER = ""${Username}"";"
+
+            # Execute each command separately
+            docker exec $ContainerName psql -U $Username -d postgres -c $terminateCmd
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to terminate database connections"
+            }
+
+            docker exec $ContainerName psql -U $Username -d postgres -c $dropCmd
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to drop database"
+            }
+
+            docker exec $ContainerName psql -U $Username -d postgres -c $createCmd
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to create database"
+            }
+
+            docker exec $ContainerName psql -U $Username -d $Database -f "/tmp/$backupFile"
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to restore database from backup file"
+            }
+
+            docker exec $ContainerName rm "/tmp/$backupFile"
+            Write-Host "Restore completed." -ForegroundColor Green
+        } catch {
+            Write-Host "Error restoring database: $_" -ForegroundColor Red
+        }
     } else {
         Write-Host "Invalid selection." -ForegroundColor Red
     }

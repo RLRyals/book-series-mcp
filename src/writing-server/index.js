@@ -671,7 +671,7 @@ class WritingProductionServer extends BaseMCPServer {
                 SELECT 
                     b.id, b.title, b.word_count, b.target_word_count, b.chapter_count, b.target_chapters,
                     b.status, b.outline_complete, b.first_draft_complete, b.editing_complete,
-                    ROUND((b.word_count::float / NULLIF(b.target_word_count, 0)) * 100, 2) as completion_percentage,
+                    ROUND((b.word_count::numeric / NULLIF(b.target_word_count, 0)::numeric) * 100.0, 2) as completion_percentage,
                     COUNT(ws.id) as total_sessions,
                     SUM(ws.words_written) as total_words_logged,
                     AVG(ws.productivity_rating) FILTER (WHERE ws.productivity_rating IS NOT NULL) as avg_productivity
