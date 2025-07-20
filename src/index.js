@@ -115,7 +115,7 @@ class BookSeriesMCPServer {
                         }
                     },
                     {
-                        name: 'create_book',
+                        name: 'create_series_book',
                         description: 'Create a new book in a series',
                         inputSchema: {
                             type: 'object',
@@ -220,7 +220,7 @@ class BookSeriesMCPServer {
                         return await this.createCharacter(args);
                     case 'get_series_characters':
                         return await this.getCharacters(args);
-                    case 'create_book':
+                    case 'create_series_book':
                         return await this.createBook(args);
                     case 'get_series_books':
                         return await this.getBooks(args);
