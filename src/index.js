@@ -80,7 +80,7 @@ class BookSeriesMCPServer {
                         }
                     },
                     {
-                        name: 'create_character',
+                        name: 'create_series_character',
                         description: 'Create a new character',
                         inputSchema: {
                             type: 'object',
@@ -103,7 +103,7 @@ class BookSeriesMCPServer {
                         }
                     },
                     {
-                        name: 'get_characters',
+                        name: 'get_series_characters',
                         description: 'Get characters for a series',
                         inputSchema: {
                             type: 'object',
@@ -190,7 +190,7 @@ class BookSeriesMCPServer {
                         }
                     },
                     {
-                        name: 'search_content',
+                        name: 'search_Series_content',
                         description: 'Search across all series content',
                         inputSchema: {
                             type: 'object',
@@ -216,7 +216,7 @@ class BookSeriesMCPServer {
                         return await this.createSeries(args);
                     case 'get_series_overview':
                         return await this.getSeriesOverview(args);
-                    case 'create_character':
+                    case 'create_series_character':
                         return await this.createCharacter(args);
                     case 'get_characters':
                         return await this.getCharacters(args);
