@@ -132,7 +132,7 @@ class BookSeriesMCPServer {
                         }
                     },
                     {
-                        name: 'get_books',
+                        name: 'get_series_books',
                         description: 'Get books in a series with progress info',
                         inputSchema: {
                             type: 'object',
@@ -143,7 +143,7 @@ class BookSeriesMCPServer {
                         }
                     },
                     {
-                        name: 'create_plot_thread',
+                        name: 'create_series_plot_thread',
                         description: 'Create a new plot thread (main arc, mini arc, subplot)',
                         inputSchema: {
                             type: 'object',
@@ -161,7 +161,7 @@ class BookSeriesMCPServer {
                         }
                     },
                     {
-                        name: 'get_plot_threads',
+                        name: 'get_series_plot_threads',
                         description: 'Get plot threads for a series',
                         inputSchema: {
                             type: 'object',
@@ -218,19 +218,19 @@ class BookSeriesMCPServer {
                         return await this.getSeriesOverview(args);
                     case 'create_series_character':
                         return await this.createCharacter(args);
-                    case 'get_characters':
+                    case 'get_series_characters':
                         return await this.getCharacters(args);
                     case 'create_book':
                         return await this.createBook(args);
-                    case 'get_books':
+                    case 'get_series_books':
                         return await this.getBooks(args);
-                    case 'create_plot_thread':
+                    case 'create_series_plot_thread':
                         return await this.createPlotThread(args);
-                    case 'get_plot_threads':
+                    case 'get_series_plot_threads':
                         return await this.getPlotThreads(args);
                     case 'update_writing_progress':
                         return await this.updateWritingProgress(args);
-                    case 'search_content':
+                    case 'search_Series_content':
                         return await this.searchContent(args);
                     default:
                         throw new Error(`Unknown tool: ${name}`);
