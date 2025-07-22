@@ -11,6 +11,7 @@ This project provides a set of Model Context Protocol (MCP) servers designed to 
 - Writing Production & Progress Tracking
 - Automated Story Structure Validation
 - Character Knowledge State Tracking
+- Text-to-Speech Generation with ElevenLabs Integration
 
 ## Prerequisites
 
@@ -199,6 +200,20 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
         "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
         "MCP_PORT": "3000"
       }
+    },
+    "elevenlabs-persona-voices": {
+      "command": "node",
+      "args": ["path/to/book-series-mcp/src/elevenlabs-persona/index.js"],
+      "env": {
+        "NODE_ENV": "development",
+        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
+        "MCP_PORT": "3008",
+        "ELEVENLABS_API_KEY": "sk_your11labskey_goes_here",
+        "ELEVENLABS_MCP_BASE_PATH": "path/to/book-series-mcp",
+        "ELEVENLABS_PERSONA_AUDIO_PATH": "path/to/book-series-mcp/audio/persona-responses",
+        "ELEVENLABS_DEFAULT_VOICE_ID": "IRHApOXLvnW57QJPQH2P",
+        "ELEVENLABS_DEFAULT_MODEL": "eleven_flash_v2_5"
+      }
     }
   },
   "isUsingBuiltInNodeForMcp": true
@@ -306,6 +321,21 @@ For more detailed information, see:
 - [Story Structure Validator Guide](docs/story-structure-validator-guide.md)
 - [Docker Database Guide](docs/docker-database-guide.md)
 - [Running Instructions](docs/running-instructions.md)
+- [Integrating ElevenLabs MCP](docs/integrating-elevenlabs-mcp.md)
+
+## ElevenLabs Integration
+
+This project includes integration with the ElevenLabs MCP for text-to-speech capabilities. To set up the integration:
+
+```bash
+# Install ElevenLabs MCP
+pip install elevenlabs-mcp
+
+# Set up integration
+node setup-elevenlabs-integration.js
+```
+
+For detailed setup instructions, see the [ElevenLabs Integration Guide](docs/integrating-elevenlabs-mcp.md).
 
 ## Database Management
 
