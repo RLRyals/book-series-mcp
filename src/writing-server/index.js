@@ -96,7 +96,8 @@ class WritingProductionServer extends BaseMCPServer {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        chapter_id: { type: 'integer', description: 'Chapter ID' },
+                        book_id: { type: 'integer', description: 'Book ID' },
+                        chapter_number: { type: 'integer', description: 'Chapter number' },
                         title: { type: 'string' },
                         summary: { type: 'string' },
                         outline: { type: 'string' },
@@ -109,7 +110,7 @@ class WritingProductionServer extends BaseMCPServer {
                         writing_notes: { type: 'string' },
                         continuity_notes: { type: 'string' }
                     },
-                    required: ['chapter_id']
+                    required: ['book_id', 'chapter_number']
                 }
             },
             {
