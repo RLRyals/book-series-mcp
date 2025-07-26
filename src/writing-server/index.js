@@ -551,46 +551,48 @@ class WritingProductionServer extends BaseMCPServer {
     }
 
     async updateChapter(args) {
-        this.validateRequired(args, ['chapter_id']);
+        this.validateRequired(args, ['book_id', 'chapter_number']);
         
-        // First get the chapter to verify it exists and get its book_id
-        const chapter = await this.db.findById('chapters', args.chapter_id);
-        if (!chapter) {
-            throw new Error(`Chapter with ID ${args.chapter_id} not found`);
-        }
-
-        // Get chapter by book_id and chapter_number to ensure we're updating the right chapter
+        // Validate book exists
+        await this.validateBookExists(args.book_id);
+        
+        // Get chapter by book_id and chapter_number
         const chapterQuery = await this.db.query(
-            'SELECT id, chapter_number FROM chapters WHERE book_id = $1 AND chapter_number = $2',
-            [chapter.book_id, chapter.chapter_number]
+            'SELECT * FROM chapters WHERE book_id = $1 AND chapter_number = $2',
+            [args.book_id, args.chapter_number]
         );
 
         if (chapterQuery.rows.length === 0) {
-            throw new Error(`Could not find chapter ${chapter.chapter_number} in book ${chapter.book_id}`);
+            throw new Error(`Could not find chapter ${args.chapter_number} in book ${args.book_id}`);
         }
 
-        // Use the chapter_id from the query to ensure we have the right chapter
-        const chapter_id = chapterQuery.rows[0].id;
-        const { ...updateData } = args;
+        const existingChapter = chapterQuery.rows[0];
+        
+        // Remove book_id and chapter_number from update data since they are identifiers
+        const { book_id, chapter_number, ...updateData } = args;
+        
+        // Update the chapter using its actual ID from the database
+        const result = await this.db.update('chapters', existingChapter.id, updateData);
+        
+        // Return only essential metadata, not the full content
+        const { content, outline, writing_notes, continuity_notes, ...chapterMetadata } = result;
         
         // If updating word count, also update the book's total word count
         if (updateData.word_count !== undefined) {
-            const oldWordCount = chapter.word_count || 0;
+            const oldWordCount = existingChapter.word_count || 0;
             const wordCountDiff = updateData.word_count - oldWordCount;
             
             if (wordCountDiff !== 0) {
                 await this.db.query(
                     'UPDATE books SET word_count = word_count + $1 WHERE id = $2',
-                    [wordCountDiff, chapter.book_id]
+                    [wordCountDiff, args.book_id]
                 );
             }
         }
         
-        const updatedChapter = await this.db.update('chapters', chapter_id, updateData);
-        
         return {
-            chapter: updatedChapter,
-            message: `Updated chapter ${updatedChapter.chapter_number}${updatedChapter.title ? ` "${updatedChapter.title}"` : ''}`
+            chapter: chapterMetadata,
+            message: `Updated chapter ${chapterMetadata.chapter_number}${chapterMetadata.title ? ` "${chapterMetadata.title}"` : ''}`
         };
     }
 
