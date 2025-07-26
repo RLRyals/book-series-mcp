@@ -177,27 +177,30 @@ class ElevenLabsPersonaVoiceServer extends BaseMCPServer {
             throw new Error('ELEVENLABS_API_KEY environment variable is required for TTS generation');
         }
         
-        // Find persona voice mapping (series-specific first, then global)
+        // Find persona voice mapping
         let voiceMapping = null;
+        let query = '';
+        let queryParams = [];
         
         if (args.series_id) {
-            const result = await this.db.query(
-                `SELECT * FROM persona_voice_mappings 
-                 WHERE series_id = $1 AND persona_name = $2`,
-                [args.series_id, args.persona_name]
-            );
-            voiceMapping = result.rows[0];
+            // If series_id provided, try series-specific mapping first, then fall back to global
+            query = `SELECT * FROM persona_voice_mappings 
+                     WHERE (series_id = $1 OR series_id IS NULL) 
+                     AND persona_name = $2
+                     ORDER BY series_id NULLS LAST
+                     LIMIT 1`;
+            queryParams = [args.series_id, args.persona_name];
+        } else {
+            // If no series_id, search across all mappings, preferring series-specific over global
+            query = `SELECT * FROM persona_voice_mappings 
+                     WHERE persona_name = $1
+                     ORDER BY series_id NULLS LAST
+                     LIMIT 1`;
+            queryParams = [args.persona_name];
         }
         
-        // Fall back to global mapping if no series-specific mapping found
-        if (!voiceMapping) {
-            const result = await this.db.query(
-                `SELECT * FROM persona_voice_mappings 
-                 WHERE persona_name = $1 AND series_id IS NULL`,
-                [args.persona_name]
-            );
-            voiceMapping = result.rows[0];
-        }
+        const result = await this.db.query(query, queryParams);
+        voiceMapping = result.rows[0];
         
         if (!voiceMapping) {
             throw new Error(`No voice mapping found for persona "${args.persona_name}"`);

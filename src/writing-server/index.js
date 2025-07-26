@@ -553,12 +553,25 @@ class WritingProductionServer extends BaseMCPServer {
     async updateChapter(args) {
         this.validateRequired(args, ['chapter_id']);
         
+        // First get the chapter to verify it exists and get its book_id
         const chapter = await this.db.findById('chapters', args.chapter_id);
         if (!chapter) {
             throw new Error(`Chapter with ID ${args.chapter_id} not found`);
         }
-        
-        const { chapter_id, ...updateData } = args;
+
+        // Get chapter by book_id and chapter_number to ensure we're updating the right chapter
+        const chapterQuery = await this.db.query(
+            'SELECT id, chapter_number FROM chapters WHERE book_id = $1 AND chapter_number = $2',
+            [chapter.book_id, chapter.chapter_number]
+        );
+
+        if (chapterQuery.rows.length === 0) {
+            throw new Error(`Could not find chapter ${chapter.chapter_number} in book ${chapter.book_id}`);
+        }
+
+        // Use the chapter_id from the query to ensure we have the right chapter
+        const chapter_id = chapterQuery.rows[0].id;
+        const { ...updateData } = args;
         
         // If updating word count, also update the book's total word count
         if (updateData.word_count !== undefined) {
