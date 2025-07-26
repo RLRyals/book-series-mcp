@@ -2,6 +2,7 @@
 import { BaseMCPServer } from '../shared/base-server.js';
 import { setupStoryStructureRoutes } from './routes/story-structure-routes.js';
 import { StoryStructureController } from './controllers/story-structure-controller.js';
+import { countWords } from './utils/word-counter.js';
 
 class WritingProductionServer extends BaseMCPServer {
     constructor() {
@@ -572,6 +573,11 @@ class WritingProductionServer extends BaseMCPServer {
         // Remove book_id and chapter_number from update data since they are identifiers
         const { book_id, chapter_number, ...updateData } = args;
         
+        // Calculate word count from content if provided
+        if (updateData.content) {
+            updateData.word_count = countWords(updateData.content);
+        }
+        
         // Update the chapter using its actual ID from the database
         const result = await this.db.update('chapters', existingChapter.id, updateData);
         
@@ -639,9 +645,28 @@ class WritingProductionServer extends BaseMCPServer {
     }
 
     async logWritingSession(args) {
-        this.validateRequired(args, ['claude_project_name', 'book_id', 'words_written', 'session_type']);
+        this.validateRequired(args, ['claude_project_name', 'book_id', 'session_type']);
         
         await this.validateBookExists(args.book_id);
+        
+        // Calculate word count if chapter content is provided
+        if (args.chapter_id && args.new_content) {
+            const chapter = await this.db.findById('chapters', args.chapter_id);
+            if (!chapter) {
+                throw new Error(`Chapter with ID ${args.chapter_id} not found`);
+            }
+            
+            // Calculate actual words written by comparing content
+            const oldWordCount = countWords(chapter.content || '');
+            const newWordCount = countWords(args.new_content);
+            args.words_written = Math.max(0, newWordCount - oldWordCount);
+            
+            // Update chapter content and word count
+            await this.db.update('chapters', args.chapter_id, {
+                content: args.new_content,
+                word_count: newWordCount
+            });
+        }
         
         if (args.chapter_id) {
             const chapter = await this.db.findById('chapters', args.chapter_id);
