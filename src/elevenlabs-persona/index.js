@@ -186,14 +186,14 @@ class ElevenLabsPersonaVoiceServer extends BaseMCPServer {
             // If series_id provided, try series-specific mapping first, then fall back to global
             query = `SELECT * FROM persona_voice_mappings 
                      WHERE (series_id = $1 OR series_id IS NULL) 
-                     AND persona_name = $2
+                     AND UPPER(persona_name) = UPPER($2)
                      ORDER BY series_id NULLS LAST
                      LIMIT 1`;
             queryParams = [args.series_id, args.persona_name];
         } else {
             // If no series_id, search across all mappings, preferring series-specific over global
             query = `SELECT * FROM persona_voice_mappings 
-                     WHERE persona_name = $1
+                     WHERE UPPER(persona_name) = UPPER($1)
                      ORDER BY series_id NULLS LAST
                      LIMIT 1`;
             queryParams = [args.persona_name];
