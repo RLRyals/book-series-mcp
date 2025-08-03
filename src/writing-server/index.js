@@ -129,6 +129,19 @@ class WritingProductionServer extends BaseMCPServer {
                 }
             },
             {
+                name: 'get_chapter',
+                description: 'Get a specific chapter by book ID and chapter number',
+                inputSchema: {
+                    type: 'object', 
+                    properties: {
+                        book_id: { type: 'integer', description: 'Book ID' },
+                        chapter_number: { type: 'integer', description: 'Chapter number' },
+                        include_content: { type: 'boolean', description: 'Whether to include chapter content', default: false }
+                    },
+                    required: ['book_id', 'chapter_number']
+                }
+            },
+            {
                 name: 'log_writing_session',
                 description: 'Log a writing session and update progress',
                 inputSchema: {
@@ -432,6 +445,7 @@ class WritingProductionServer extends BaseMCPServer {
             'create_chapter': this.createChapter,
             'update_chapter': this.updateChapter,
             'get_chapters': this.getChapters,
+            'get_chapter': this.getChapter,
             'log_writing_session': this.logWritingSession,
             'get_writing_progress': this.getWritingProgress,
             'set_writing_goals': this.setWritingGoals,
@@ -601,6 +615,36 @@ class WritingProductionServer extends BaseMCPServer {
             chapter: chapterMetadata,
             message: `Updated chapter ${chapterMetadata.chapter_number}${chapterMetadata.title ? ` "${chapterMetadata.title}"` : ''}`
         };
+    }
+
+    async getChapter(args) {
+        this.validateRequired(args, ['book_id', 'chapter_number']);
+        
+        await this.validateBookExists(args.book_id);
+        
+        let selectFields = 'c.id, c.book_id, c.chapter_number, c.title, c.word_count, c.target_word_count, c.summary, c.outline, c.status, c.writing_notes, c.continuity_notes, c.created_at, c.updated_at';
+        
+        if (args.include_content) {
+            selectFields += ', c.content';
+        }
+        
+        const query = `
+            SELECT ${selectFields},
+                   char.name as pov_character_name,
+                   loc.name as scene_setting_name
+            FROM chapters c
+            LEFT JOIN characters char ON c.pov_character_id = char.id
+            LEFT JOIN locations loc ON c.scene_setting_id = loc.id
+            WHERE c.book_id = $1 AND c.chapter_number = $2
+        `;
+        
+        const result = await this.db.query(query, [args.book_id, args.chapter_number]);
+        
+        if (result.rows.length === 0) {
+            throw new Error(`Chapter ${args.chapter_number} not found in book ${args.book_id}`);
+        }
+        
+        return result.rows[0];
     }
 
     async getChapters(args) {

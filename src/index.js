@@ -201,6 +201,38 @@ class BookSeriesMCPServer {
                             },
                             required: ['series_id', 'search_term']
                         }
+                    },
+                    {
+                        name: 'cross_reference_elements',
+                        description: 'Find connections and references between different story elements',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                series_id: { type: 'integer', description: 'Series ID' },
+                                element_type: { 
+                                    type: 'string', 
+                                    description: 'Type of element to cross-reference',
+                                    enum: ['character', 'location', 'plot_thread', 'world_element', 'case']
+                                },
+                                element_id: { type: 'integer', description: 'ID of the specific element' },
+                                depth_level: { 
+                                    type: 'integer', 
+                                    description: 'How many degrees of separation to explore',
+                                    minimum: 1,
+                                    maximum: 5,
+                                    default: 2
+                                },
+                                reference_types: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        enum: ['direct_mentions', 'implied_connections', 'timeline_overlap', 'shared_locations', 'relationship_chains']
+                                    },
+                                    description: 'Types of references to look for'
+                                }
+                            },
+                            required: ['series_id', 'element_type', 'element_id']
+                        }
                     }
                 ]
             };
@@ -232,6 +264,8 @@ class BookSeriesMCPServer {
                         return await this.updateWritingProgress(args);
                     case 'search_Series_content':
                         return await this.searchContent(args);
+                    case 'cross_reference_elements':
+                        return await this.crossReferenceElements(args);
                     default:
                         throw new Error(`Unknown tool: ${name}`);
                 }
@@ -476,6 +510,71 @@ class BookSeriesMCPServer {
                 {
                     type: 'text',
                     text: `Logged writing session: ${words_written} words written for book ID ${book_id} by ${claude_project_name}`
+                }
+            ]
+        };
+    }
+
+    async crossReferenceElements(args) {
+        const { series_id, element_type, element_id, depth_level = 2, reference_types = [] } = args;
+        
+        // Base query to get direct references
+        let references = {};
+        
+        // Get direct mentions in various content types
+        const directMentions = await this.db.query(
+            `SELECT 'direct_mention' as ref_type, source_type, source_id, content_preview
+             FROM element_references 
+             WHERE series_id = $1 
+             AND target_type = $2 
+             AND target_id = $3`,
+            [series_id, element_type, element_id]
+        );
+        references.direct_mentions = directMentions.rows;
+        
+        // Get timeline overlaps if it's a character or location
+        if (element_type === 'character' || element_type === 'location') {
+            const timelineOverlaps = await this.db.query(
+                `SELECT DISTINCT e2.* 
+                 FROM timeline_events e1
+                 JOIN timeline_events e2 ON DATE_TRUNC('day', e1.event_datetime) = DATE_TRUNC('day', e2.event_datetime)
+                 WHERE e1.series_id = $1 
+                 AND e1.${element_type}_id = $2
+                 AND e2.${element_type}_id != $2`,
+                [series_id, element_id]
+            );
+            references.timeline_overlaps = timelineOverlaps.rows;
+        }
+        
+        // Get relationship chains for characters
+        if (element_type === 'character' && depth_level > 1) {
+            const relationships = await this.db.query(
+                `WITH RECURSIVE char_chain AS (
+                    SELECT c1.id, c1.name, c1.character_type, 1 as depth
+                    FROM character_relationships cr
+                    JOIN characters c1 ON (cr.character1_id = c1.id OR cr.character2_id = c1.id)
+                    WHERE (cr.character1_id = $1 OR cr.character2_id = $1)
+                    UNION
+                    SELECT c2.id, c2.name, c2.character_type, cc.depth + 1
+                    FROM character_relationships cr
+                    JOIN char_chain cc ON (cr.character1_id = cc.id OR cr.character2_id = cc.id)
+                    JOIN characters c2 ON (
+                        (cr.character1_id = c2.id OR cr.character2_id = c2.id) 
+                        AND c2.id != cc.id
+                    )
+                    WHERE cc.depth < $2
+                )
+                SELECT * FROM char_chain WHERE id != $1 ORDER BY depth;`,
+                [element_id, depth_level]
+            );
+            references.relationship_chains = relationships.rows;
+        }
+
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: JSON.stringify(references, null, 2)
                 }
             ]
         };
