@@ -152,8 +152,7 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
       "args": ["path/to/book-series-mcp/src/writing-server/index.js"],
       "env": {
         "NODE_ENV": "development",
-        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
-        "MCP_PORT": "3004"
+        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series"
       }
     },
     "character-development": {
@@ -161,8 +160,7 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
       "args": ["path/to/book-series-mcp/src/character-server/index.js"],
       "env": {
         "NODE_ENV": "development",
-        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
-        "MCP_PORT": "3001"
+        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series"
       }
     },
     "plot-management": {
@@ -170,8 +168,7 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
       "args": ["path/to/book-series-mcp/src/plot-server/index.js"],
       "env": {
         "NODE_ENV": "development",
-        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
-        "MCP_PORT": "3002"
+        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series"
       }
     },
     "world-building": {
@@ -179,8 +176,7 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
       "args": ["path/to/book-series-mcp/src/world-server/index.js"],
       "env": {
         "NODE_ENV": "development",
-        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
-        "MCP_PORT": "3003"
+        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series"
       }
     },
     "research-continuity": {
@@ -188,8 +184,7 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
       "args": ["path/to/book-series-mcp/src/research-server/index.js"],
       "env": {
         "NODE_ENV": "development",
-        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
-        "MCP_PORT": "3005"
+        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series"
       }
     },
     "book-series-manager": {
@@ -197,8 +192,7 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
       "args": ["path/to/book-series-mcp/src/index.js"],
       "env": {
         "NODE_ENV": "development",
-        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
-        "MCP_PORT": "3000"
+        "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series"
       }
     },
     "elevenlabs-persona-voices": {
@@ -207,7 +201,6 @@ Note: When using this option, you can ignore the `docker-compose.yml` and other 
       "env": {
         "NODE_ENV": "development",
         "DATABASE_URL": "postgresql://writer:secure_writing_password_2025@localhost:5432/book_series",
-        "MCP_PORT": "3008",
         "ELEVENLABS_API_KEY": "sk_your11labskey_goes_here",
         "ELEVENLABS_MCP_BASE_PATH": "path/to/book-series-mcp",
         "ELEVENLABS_PERSONA_AUDIO_PATH": "path/to/book-series-mcp/audio/persona-responses",

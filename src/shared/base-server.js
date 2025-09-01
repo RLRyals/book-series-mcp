@@ -42,6 +42,13 @@ export class BaseMCPServer {
     }
 
     setupHttpServer() {
+
+        // Skip HTTP server when running as MCP server (stdio mode)
+        // MCP servers communicate via stdin/stdout, not HTTP
+        if (!process.stdout.isTTY || process.env.MCP_SERVER_MODE) {
+            console.error(`${this.serverName} running as MCP server - skipping HTTP setup`);
+            return;
+        }
         this.httpApp.use(helmet());
         this.httpApp.use(cors());
         this.httpApp.use(express.json());

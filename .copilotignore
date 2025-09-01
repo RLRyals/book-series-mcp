@@ -1,0 +1,8 @@
+# Ignore all files in the [node_modules](http://_vscodecontentref_/1) directory
+node_modules/
+
+# Ignore all [.env](http://_vscodecontentref_/2) files
+*.env
+
+# Ignore specific files
+secrets.json

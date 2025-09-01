@@ -31,7 +31,7 @@ Our system uses:
 1. Set up GitHub Copilot:
    - First, you'll need:
      - A GitHub account (create one at github.com if needed)
-     - You do not need a GitHub Copilot subscription. 
+     - You do not need a GitHub Copilot subscription. (You can use API keys.)
    
    - Install GitHub Copilot in VS Code:
      - Open VS Code
